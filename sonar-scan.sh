@@ -2,9 +2,9 @@
 # Scan a local Maven project to SonarQube Cloud
 #
 # Usage:
-#   sonar-scan.sh <project-dir> <project-key> <project-name> <token> [--instance staging|cloud] [extra-maven-args...]
+#   sonar-scan.sh <project-dir> <project-key> <project-name> <token> [--instance staging|cloud|dev19] [extra-maven-args...]
 #
-# Instance defaults to 'staging' (sc-staging.io). Use --instance cloud for sonarcloud.io.
+# Instance defaults to 'staging' (sc-staging.io). Use --instance cloud for sonarcloud.io, --instance dev19 for dev19.sc-dev19.io.
 #
 # Example:
 #   sonar-scan.sh ~/Documents/git/gctoolkit \
@@ -61,8 +61,16 @@ case "$INSTANCE" in
     SONAR_HOST=https://sonarcloud.io
     SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar
     ;;
+  dev19)
+    SONAR_HOST=https://dev19.sc-dev19.io
+    SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar
+    SCANNER_URL_ARGS=(
+      "-Dsonar.scanner.sonarcloudUrl=https://dev19.sc-dev19.io"
+      "-Dsonar.scanner.apiBaseUrl=https://api.dev19.sc-dev19.io"
+    )
+    ;;
   *)
-    echo "Error: unknown instance '$INSTANCE'. Use 'staging' or 'cloud'."
+    echo "Error: unknown instance '$INSTANCE'. Use 'staging', 'cloud', or 'dev19'."
     exit 1
     ;;
 esac
