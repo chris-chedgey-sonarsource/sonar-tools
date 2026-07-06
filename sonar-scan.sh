@@ -4,7 +4,7 @@
 # Usage:
 #   sonar-scan.sh <project-dir> <project-key> <project-name> <token> [--instance staging|cloud|dev19] [extra-maven-args...]
 #
-# Instance defaults to 'staging' (sc-staging.io). Use --instance cloud for sonarcloud.io, --instance dev19 for dev19.sc-dev19.io.
+# Instance defaults to 'staging' (sc-staging.io). Use --instance cloud for sonarcloud.io, --instance dev19 for dev19.sc-dev19.io, --instance sqs for local SonarQube Server (localhost:9000).
 #
 # Example:
 #   sonar-scan.sh ~/Documents/git/gctoolkit \
@@ -48,6 +48,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCANNER_URL_ARGS=()
+ORG_ARGS=()
 case "$INSTANCE" in
   staging)
     SONAR_HOST=https://sc-staging.io
@@ -56,26 +57,36 @@ case "$INSTANCE" in
       "-Dsonar.scanner.sonarcloudUrl=https://sc-staging.io"
       "-Dsonar.scanner.apiBaseUrl=https://api.sc-staging.io"
     )
+    ORG_ARGS=("-Dsonar.organization=the-dna-squad")
     ;;
   cloud)
     SONAR_HOST=https://sonarcloud.io
     SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar
+    SCANNER_URL_ARGS=(
+      "-Dsonar.scanner.sonarcloudUrl=https://sonarcloud.io"
+      "-Dsonar.scanner.apiBaseUrl=https://api.sonarcloud.io"
+    )
+    ORG_ARGS=("-Dsonar.organization=the-dna-squad")
     ;;
   dev19)
     SONAR_HOST=https://dev19.sc-dev19.io
     SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar
     SCANNER_URL_ARGS=(
       "-Dsonar.scanner.sonarcloudUrl=https://dev19.sc-dev19.io"
-      "-Dsonar.scanner.apiBaseUrl=https://api.dev19.sc-dev19.io"
+      "-Dsonar.scanner.apiBaseUrl=https://api.sc-dev19.io"
     )
+    ORG_ARGS=("-Dsonar.organization=the-dna-squad")
+    ;;
+  sqs)
+    SONAR_HOST=http://localhost:9000
+    SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar
+    # No org, no cloud URL args for local SonarQube Server
     ;;
   *)
-    echo "Error: unknown instance '$INSTANCE'. Use 'staging', 'cloud', or 'dev19'."
+    echo "Error: unknown instance '$INSTANCE'. Use 'staging', 'cloud', 'dev19', or 'sqs'."
     exit 1
     ;;
 esac
-
-SONAR_ORG=the-dna-squad
 
 if [ -z "$PROJECT_DIR" ] || [ -z "$PROJECT_KEY" ] || [ -z "$PROJECT_NAME" ] || [ -z "$TOKEN" ]; then
   echo "Usage: $0 <project-dir> <project-key> <project-name> <token> [--instance staging|cloud] [extra-maven-args...]"
@@ -88,7 +99,7 @@ mvn package "$SONAR_PLUGIN" \
   -DskipTests \
   -Dsonar.token="$TOKEN" \
   -Dsonar.host.url="$SONAR_HOST" \
-  -Dsonar.organization="$SONAR_ORG" \
+  "${ORG_ARGS[@]}" \
   -Dsonar.projectKey="$PROJECT_KEY" \
   -Dsonar.projectName="$PROJECT_NAME" \
   "${SCANNER_URL_ARGS[@]}" \
