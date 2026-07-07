@@ -52,8 +52,8 @@ if [ -f "$SQS_BIN" ]; then
   sleep 5
 fi
 
-# Find distribution zip
-ZIPFILE=$(ls "$ENTERPRISE_DIR/sonar-application/build/distributions/sonarqube-"*.zip 2>/dev/null | head -1)
+# Find distribution zip (name varies by version: sonarqube-*.zip or sonar-application-*.zip)
+ZIPFILE=$(ls "$ENTERPRISE_DIR/sonar-application/build/distributions/"*.zip 2>/dev/null | head -1)
 if [ -z "$ZIPFILE" ]; then
   echo "Error: no distribution zip found in $ENTERPRISE_DIR/sonar-application/build/distributions/"
   echo "Run without --no-build to produce one."
@@ -64,7 +64,7 @@ echo "=== Installing: $(basename "$ZIPFILE") ==="
 # Extract to temp location, then move into place
 TMPDIR=$(mktemp -d)
 unzip -q "$ZIPFILE" -d "$TMPDIR"
-EXTRACTED=$(ls -d "$TMPDIR/sonarqube-"*/ | head -1)
+EXTRACTED=$(ls -d "$TMPDIR/"*/ | head -1)
 
 rm -rf "$INSTALL_DIR"
 mkdir -p "$(dirname "$INSTALL_DIR")"
