@@ -79,7 +79,7 @@ case "$INSTANCE" in
     ;;
   sqs)
     SONAR_HOST=http://localhost:9000
-    SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar
+    SONAR_PLUGIN=org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar
     # No org, no cloud URL args for local SonarQube Server
     ;;
   *)
