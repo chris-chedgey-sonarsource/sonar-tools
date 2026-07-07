@@ -70,6 +70,7 @@ fi
 # Format: "project-key|display-name|env-var-name"
 PROJECTS=(
   "gctoolkit-upstream-main|chris-chedgey / gctoolkit / upstream-main|SONAR_TOKEN_GCTOOLKIT_UPSTREAM_MAIN_SQS"
+  "maven-master|chris-chedgey / maven / master|SONAR_TOKEN_MAVEN_MASTER_SQS"
 )
 
 for entry in "${PROJECTS[@]}"; do
