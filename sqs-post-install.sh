@@ -23,6 +23,26 @@ ADMIN_USER=admin
 ADMIN_DEFAULT_PASS=admin
 ADMIN_PASS=Localhost-admin1
 LICENSE_FILE="$HOME/Documents/git/licenses/edition_testing/ee.txt"
+INSTALL_DIR="$HOME/sonarqube-local/server"
+
+# Persistent JWT secret — keeps sessions alive across server restarts/reinstalls.
+# Generated once; do not change unless you want to log everyone out.
+JWT_SECRET="b/okSAXqd3WVcosVcYZZJLtzXWBfqOZcWWdUDzm48EI="
+
+SQS_BIN="$INSTALL_DIR/bin/macosx-universal-64/sonar.sh"
+PROPS="$INSTALL_DIR/conf/sonar.properties"
+
+# --- Set JWT secret before server starts so sessions survive restarts ---
+echo "=== Setting persistent JWT secret ==="
+if grep -q "^sonar.auth.jwtBase64Hs256Secret=" "$PROPS" 2>/dev/null; then
+  sed -i '' "s|^sonar.auth.jwtBase64Hs256Secret=.*|sonar.auth.jwtBase64Hs256Secret=$JWT_SECRET|" "$PROPS"
+else
+  sed -i '' "s|^#sonar.auth.jwtBase64Hs256Secret=.*|sonar.auth.jwtBase64Hs256Secret=$JWT_SECRET|" "$PROPS"
+fi
+echo "JWT secret set — restarting server to apply it."
+"$SQS_BIN" stop 2>/dev/null || true
+sleep 5
+"$SQS_BIN" start
 
 # --- Wait for server to be UP ---
 echo "=== Waiting for SonarQube to be UP ==="
