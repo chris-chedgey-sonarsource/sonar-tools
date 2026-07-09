@@ -1,13 +1,22 @@
 #!/bin/bash
 # Post-install setup for a fresh local SonarQube Server instance.
 #
-# Runs after any install (snapshot or rebuild) that wipes the H2 database.
-# Does everything needed to get back to a working state:
-#   1. Waits for the server to be UP
-#   2. Sets the admin password
-#   3. Applies the enterprise license
-#   4. Creates each configured project and generates a project analysis token
-#   5. Updates ~/.zshrc with the new tokens
+# Runs after any snapshot install or rebuild. Sets sonar.path.data to
+# ~/sonarqube-local/data (outside the server dir) so the H2 database and all
+# state (scans, Intended Architecture, tokens) survive future snapshot updates.
+#
+# On first run this directory is empty and the full setup runs. On subsequent
+# runs (existing data dir), the database is already populated so password/license/
+# project/token steps are skipped or are idempotent.
+#
+# Steps:
+#   1. Sets external data directory in sonar.properties
+#   2. Sets persistent JWT secret
+#   3. Restarts server and waits for UP
+#   4. Sets admin password (idempotent)
+#   5. Applies enterprise license
+#   6. Creates each configured project and analysis token
+#   7. Updates ~/.zshrc with new tokens
 #
 # Usage:
 #   sqs-post-install.sh
@@ -31,6 +40,16 @@ JWT_SECRET="b/okSAXqd3WVcosVcYZZJLtzXWBfqOZcWWdUDzm48EI="
 
 SQS_BIN="$INSTALL_DIR/bin/macosx-universal-64/sonar.sh"
 PROPS="$INSTALL_DIR/conf/sonar.properties"
+
+# --- Point data directory outside server dir so it survives snapshot updates ---
+DATA_DIR="$HOME/sonarqube-local/data"
+echo "=== Setting external data directory ==="
+if grep -q "^sonar.path.data=" "$PROPS" 2>/dev/null; then
+  sed -i '' "s|^sonar.path.data=.*|sonar.path.data=$DATA_DIR|" "$PROPS"
+else
+  sed -i '' "s|^#sonar.path.data=.*|sonar.path.data=$DATA_DIR|" "$PROPS"
+fi
+echo "Data directory set to $DATA_DIR"
 
 # --- Set JWT secret before server starts so sessions survive restarts ---
 echo "=== Setting persistent JWT secret ==="
