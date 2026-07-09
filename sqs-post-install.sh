@@ -53,13 +53,14 @@ echo "Server is UP."
 
 # --- Set admin password ---
 echo "=== Setting admin password ==="
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "$ADMIN_USER:$ADMIN_PASS" "$SQS_URL/api/authentication/validate")
-if [ "$HTTP_STATUS" = "200" ]; then
-  echo "Password already set to Localhost-admin1, skipping."
-else
-  curl -s -u "$ADMIN_USER:$ADMIN_DEFAULT_PASS" -X POST "$SQS_URL/api/users/change_password" \
-    -d "login=$ADMIN_USER&previousPassword=$ADMIN_DEFAULT_PASS&password=$ADMIN_PASS"
+# Always attempt to set the password — the validate endpoint can return 200 on a fresh
+# install before authentication is fully initialised, causing false "already set" skips.
+CHANGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -u "$ADMIN_USER:$ADMIN_DEFAULT_PASS" -X POST "$SQS_URL/api/users/change_password" \
+  -d "login=$ADMIN_USER&previousPassword=$ADMIN_DEFAULT_PASS&password=$ADMIN_PASS")
+if [ "$CHANGE_STATUS" = "204" ] || [ "$CHANGE_STATUS" = "200" ]; then
   echo "Password set."
+else
+  echo "Password already set (or change failed with HTTP $CHANGE_STATUS), continuing."
 fi
 
 # --- Apply enterprise license ---
@@ -81,7 +82,11 @@ if [ "$HTTP_STATUS" != "200" ] || [ -z "$SONAR_TOKEN_SQS" ]; then
   echo "=== Creating user token ==="
   NEW_USER_TOKEN=$(curl -s -u "$ADMIN_USER:$ADMIN_PASS" -X POST "$SQS_URL/api/user_tokens/generate" \
     -d "name=admin-api&type=USER_TOKEN" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
-  sed -i '' "s|SONAR_TOKEN_SQS=.*|SONAR_TOKEN_SQS=$NEW_USER_TOKEN|" ~/.zshrc
+  if grep -q "^export SONAR_TOKEN_SQS=" ~/.zshrc; then
+    sed -i '' "s|^export SONAR_TOKEN_SQS=.*|export SONAR_TOKEN_SQS=$NEW_USER_TOKEN|" ~/.zshrc
+  else
+    echo "export SONAR_TOKEN_SQS=$NEW_USER_TOKEN" >> ~/.zshrc
+  fi
   export SONAR_TOKEN_SQS="$NEW_USER_TOKEN"
   echo "User token created and saved."
 fi
@@ -91,6 +96,7 @@ fi
 PROJECTS=(
   "gctoolkit-upstream-main|chris-chedgey / gctoolkit / upstream-main|SONAR_TOKEN_GCTOOLKIT_UPSTREAM_MAIN_SQS"
   "maven-master|chris-chedgey / maven / master|SONAR_TOKEN_MAVEN_MASTER_SQS"
+  "gctoolkit-testing|chris-chedgey / gctoolkit / testing|SONAR_TOKEN_GCTOOLKIT_TESTING_SQS"
 )
 
 for entry in "${PROJECTS[@]}"; do
@@ -104,10 +110,14 @@ for entry in "${PROJECTS[@]}"; do
     -d "name=$PROJECT_NAME&project=$PROJECT_KEY&visibility=private" > /dev/null
 
   TOKEN=$(curl -s -u "$ADMIN_USER:$ADMIN_PASS" "$SQS_URL/api/user_tokens/generate" -X POST \
-    -d "name=${PROJECT_KEY}-scan&type=PROJECT_ANALYSIS_TOKEN&projectKey=$PROJECT_KEY" \
+    -d "name=${PROJECT_KEY}-scan&type=GLOBAL_ANALYSIS_TOKEN" \
     | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
 
-  sed -i '' "s|${TOKEN_VAR}=.*|${TOKEN_VAR}=$TOKEN|" ~/.zshrc
+  if grep -q "^export ${TOKEN_VAR}=" ~/.zshrc; then
+    sed -i '' "s|^export ${TOKEN_VAR}=.*|export ${TOKEN_VAR}=$TOKEN|" ~/.zshrc
+  else
+    echo "export ${TOKEN_VAR}=$TOKEN" >> ~/.zshrc
+  fi
   echo "  Token saved to \$${TOKEN_VAR}"
 done
 
